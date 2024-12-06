@@ -26,8 +26,7 @@ other modules), thus allowing the code of a script to be spread across
 many reference inputs. The 'main specification' requires *no* changes to
 UPLC, PTLC, PIR or Plinth; only a 'dependency resolution' step before
 scripts are run. Many variations are described for better performance,
-including some requiring changes to the CEK machine itself, and even
-recalibration of the cost of each kind of CEK step.
+including some requiring changes to the CEK machine itself.
 
 Higher performance variations will be more expensive to implement; the
 final choice of variations should take implementation cost into
@@ -473,13 +472,6 @@ arguments using an index into *the script's own* script arguments;
 before execution these indices must be replaced by the corresponding
 indices in the global module environment, necessitating a traversal of
 the script code to prepare it for execution.
-
-Because this variation adds an additional parameter to the CEK
-mcahine, and to each tail-called function implementing its steps, then
-it might affect the cost of every operation in the CEK machine
-(although this effect is small and may be zero). If this variation is
-chosen, it might be advisable to recalibrate the costs of UPLC
-operations.
 
 ##### Subvariation: Unboxed modules
 
@@ -1203,11 +1195,6 @@ directly accesses the module in the `i`th component of the global
 module environment. This reduces the cost from a variable lookup plus
 a projection, to just a projection; this can be expected to speed up every
 reference to an external module.
-
-On the other hand, since it adds a parameter to the CEK machine
-implementation, then it might increase the cost of all CEK machine
-operations--and so recalibrating the cost of UPLC operations might be
-advisable.
 
 ##### Subvariation: Unboxed modules
 
