@@ -364,6 +364,46 @@ evaluated, the value of the script is just added to the environment in
 the same way as the script arguments. The script can then refer to
 its own value using `Self`.
 
+#### Variation: Explicit lambdas
+
+This variation is a less-restrictive version of 'value scripts'. As in
+the former case, we restrict scripts syntactically to explicit
+λ-expressions binding the script arguments, but we do not restrict the
+script body proper to be a syntactic value. As in the former case, the
+λs need not be present in the `Script` representation, because their
+number is known from the number of script arguments, and the bound
+variables are deBruijn indices.
+
+In this variation, script bodies cannot be converted to `CekValue`s
+using `cekValue`; we actually have to run the CEK machine to evaluate
+them. This requires extending the API of the CEK machine, to support
+evaluating a UPLC term *in a given environment*, and returning a
+`CekValue`, rather than a discharged `NTerm`, because discharging a
+`CekValue` loses sharing. Losing sharing is unacceptable becayse it
+introduces a potentially exponential space cost for acyclic
+structures, and leads to non-termination in the case of cyclic
+structures (created by 'Module-level recursion').
+
+The implementation of the CEK machine currently always discharges
+values before returning them; the core loop of the machine will need
+to be modified to change this.
+
+Since script bodies must be evaluated by running the CEK machine, then
+it is possible to exceed the execution unit budget at any point during
+the script evaluation. The budget must be checked during these
+evaluations, and the budget for evaluating each script will depend on
+the actual costs of evaluating all the previous ones.
+
+To avoid circular dependencies, the scripts must be topologically
+sorted before evaluation, so that no earlier script depends on a later
+one. Topological sorting is linear time in the total number of scripts
+and script arguments.
+
+It is still possible to write a recursive definition of the
+`scriptValues`, so that each script can depend on the *same* map, but
+care is needed to avoid circular dependencies for the reasons
+explained above.
+
 #### A Note on Tuples
 
 The following variations make heavy use of tuples which in practice
@@ -405,7 +445,6 @@ tuple `t`. There are several ways this could be implemented:
 
 In the sections below we just use tuples and the notation `proj i t`,
 on the assumption that an implementation is chosen and deployed.
-
 
 #### Variation: Tuples of modules
 
@@ -1148,6 +1187,37 @@ must be a syntactic λ-expression). This is a *more efficient* way to
 implement recursion than the fixpoint combinators currently used in
 UPLC, and so will probably become the preferred way to implement
 recursion.
+
+#### Variation: Explicit lambdas
+
+This variation lifts some of the restrictions of the 'value scripts'
+approach, at the cost of running the CEK machine to evaluate each
+module, and taking care to compute and check costs correctly for the
+new CEK machine runs. This requires topological sorting of the scripts
+in a transaction before evaluation, to guarantee that we do not
+encounter a situation where script A depends on script B, but the
+budget for computing script B depends on the cost of script A--such a
+situation would lead to a blackhole error during script verification.
+
+Because script bodies may now be arbitrary terms, 'module-level
+recursion' is no longer essential--it is possible to use fixpoint
+combinators in script bodies as at present. It would still improve
+efficiency, of course.
+
+Note that if modules *do* meet the syntactic restrictions of 'value
+scripts', then this variation will be less efficient--perhaps
+considerably so. This is because even evaluating, say, a large tuple
+whose components are λ-expressions, leads the CEK machine to descend
+into, evaluate, and return out of, each component, thus performing
+several CEK transitions per element. The `cekValue` function must also
+visit each component, of course, but because this is done directly in
+Haskell then it will be considerably more efficient.
+
+This variation is compatible with the various tuple-based variations,
+but when the script body is constrained to return a tuple then this
+must be checked dynamically when CEK-evaluation is complete; the check
+cannot be built into deserialization any more because it is no longer
+syntactic.
 
 #### Variation: Tuples of modules
 
