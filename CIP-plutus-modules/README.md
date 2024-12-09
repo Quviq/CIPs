@@ -1430,6 +1430,14 @@ syntactic restriction would be a little annoying, and it requires CEK
 operations which are not currently part of the API, so it requires
 modifications to a critical component of the Plutus implementation.
 
+The *explicit λs* variation is a half-way house between the main
+variation and the 'value scripts' variation. It places less onerous
+syntactic restrictions on script bodies, and as such can be used with
+the existing implementation of recursion (although efficiency would
+still benefit from module-level recursion). Cost accounting during
+script evaluation is a little intricate. It requires modifications to
+the loop at the core of the CEK machine.
+
 The *tuples of modules* variation replaces parameters referring to
 individual modules with a single parameter bound to a tuple of
 modules, effectively uncurrying scripts wrt their module
