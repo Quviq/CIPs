@@ -379,7 +379,7 @@ using `cekValue`; we actually have to run the CEK machine to evaluate
 them. This requires extending the API of the CEK machine, to support
 evaluating a UPLC term *in a given environment*, and returning a
 `CekValue`, rather than a discharged `NTerm`, because discharging a
-`CekValue` loses sharing. Losing sharing is unacceptable becayse it
+`CekValue` loses sharing. Losing sharing is unacceptable because it
 introduces a potentially exponential space cost for acyclic
 structures, and leads to non-termination in the case of cyclic
 structures (created by 'Module-level recursion').
@@ -1205,13 +1205,14 @@ combinators in script bodies as at present. It would still improve
 efficiency, of course.
 
 Note that if modules *do* meet the syntactic restrictions of 'value
-scripts', then this variation will be less efficient--perhaps
-considerably so. This is because even evaluating, say, a large tuple
-whose components are λ-expressions, leads the CEK machine to descend
-into, evaluate, and return out of, each component, thus performing
-several CEK transitions per element. The `cekValue` function must also
-visit each component, of course, but because this is done directly in
-Haskell then it will be considerably more efficient.
+scripts', then this variation will be less efficient than 'value
+scripts'--sometimes considerably so. This is because even evaluating,
+say, a large tuple whose components are λ-expressions, leads the CEK
+machine to descend into, evaluate, and return out of, each component,
+thus performing several CEK transitions per element. The `cekValue`
+function must also visit each component, of course, doing the same
+work, but because this is done directly in Haskell then it will be
+considerably more efficient.
 
 This variation is compatible with the various tuple-based variations,
 but when the script body is constrained to return a tuple then this
