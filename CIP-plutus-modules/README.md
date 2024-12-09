@@ -289,7 +289,7 @@ cekValue
 cekValue env t = case t of
   Var _ varname      -> lookupVarName varName env
   Constant _ val     -> VCon val
-  LamAbs _ name body -> VLamAbs namea body env
+  LamAbs _ name body -> VLamAbs name body env
   Delay _ body       -> VDelay body env
   Builtin _ bn       ->
     let meaning = lookupBuiltin bn ?cekRuntime in
