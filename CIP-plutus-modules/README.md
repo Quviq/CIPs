@@ -519,16 +519,15 @@ scripts representing modules; the latter are subject to an additional
 syntactic restriction that the script body must be a tuple. We change
 the `Script` type accordingly
 ```
-data Script = CompleteValidatorScript CompiledCode
-            | ValidatorScript         CompiledCode [ScriptArg]
-            | CompleteModuleScript    CompiledCode
-	    | ModuleScript            CompiledCode [ScriptArg]
+data Script = ValidatorScript         CompiledCode [ScriptArg]
+            | ModuleScript            CompiledCode [ScriptArg]
 ```
 so that the deserializer can easily check the new syntactic
 restriction. `Script`s used as `ScriptArg`s may only be of the
 `ModuleScript` form (this requires a dynamic check). The idea is that
 a module provides a number of exports, which are the components of the
-tuple.
+tuple. (Again, special cases for an empty list of script arguments
+can be included in this type if desired).
 
 In addition, expressions `M` referring to modules (of the form `proj j
 Mods`) may only appear in contexts of the form `proj i M`, projecting
@@ -635,6 +634,20 @@ these.
 
 It is `Module` values that would then be serialised to produce scripts
 for inclusion in transactions.
+
+In the 'unboxed modules' variation we need to distinguish two kinds of
+scripts, scripts which define modules, and scripts which define
+validators. In Plinth, this distinction can be made in the types, by
+turning the `Module` type into a GADT with an extra parameter, of type
+```
+data ScriptType = ModuleScript | ValidatorScript
+```
+`applyModule` would be given a more restrictive type:
+```
+applyModule :: Module s (a->b) -> Module ModuleScript a -> Module s b
+```
+thus ensuring that only scripts representing modules are passed as
+script arguments.
 
 ### Plutus Ledger Language Versions
 
@@ -1355,6 +1368,56 @@ Moreover, today we see examples of deliberate choice of worse
 algorithms, because their code is smaller, and easier to fit within
 the script size limit. Removing the need to make such choices can
 potentially improve performance considerably.
+
+### Example: Defining and using a Set module
+
+As an example of how the module system might be used in a high-level
+language, consider the following code, which defines and uses a module
+implementing set insertion and membership testing, using an ordered
+binary tree.
+```
+data Tree a = Leaf | Branch (Tree a) a (Tree a)
+
+empTree = Leaf
+
+insTree a Leaf = Branch Leaf a Leaf
+insTree a (Branch l b r)
+  | a < b = Branch (insTree a l) b r
+  | a > b = Branch l b (insTree a r)
+  | a== b = Branch l b r
+
+memTree a Leaf = False
+memTree a (Branch l b r)
+  | a < b = memTree a l
+  | a > b = memTree a r
+  | a== b = True
+
+data Set = Set {emptySet :: forall a. Tree a,
+     	        insertSet :: forall a. Ord a => a -> Tree a -> Tree a,
+		memberSet :: forall a. Ord a => a -> Tree a -> Bool}
+
+setMod = Set empTree insTree memTree
+
+setModule :: Module Set
+setModule = makeModule ($$(PlutusTx.compile [| setMod |]))
+
+client set redeemer _ = memberSet set redeemer s
+  where s = insertSet set 1 (insertSet set 2 (emptySet set))
+
+clientModule = makeModule ($$(PlutusTx.compile [| client |]))
+ `applyModule` setModule
+```
+Here the module signature is represented by a Haskell record type;
+Haskell records are compiled into tuples in UPLC, and the record
+fields are all values (once fixpoints are floated upwards to the
+module level), so the `setModule` in this example fits the 'unboxed
+modules' syntactic restrictions. The client script takes the record as
+an argument, and uses the module exports via record field selectors,
+which compile to projections from the tuple. Thus the client also
+meets the syntactic restrictions for 'unboxed modules'. To make use
+of these modules, the off-chain code must construct a UTxO
+containing `setModule` as a reference script, and include it as a
+reference UTxO in transactions that use the client.
 
 ### Related work
 
