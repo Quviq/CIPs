@@ -1,5 +1,5 @@
 ---
-CIP: "?"
+CIP: 152
 Title: Modules in UPLC
 Status: Proposed
 Category: Plutus
